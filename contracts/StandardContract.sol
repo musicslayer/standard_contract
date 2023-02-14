@@ -40,6 +40,38 @@ interface IERC721Receiver {
     function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data) external returns (bytes4);
 }
 
+// import "@openzeppelin/contracts/token/ERC777/IERC777.sol";
+interface IERC777 {
+    event Minted(address indexed operator, address indexed to, uint256 amount, bytes data, bytes operatorData);
+    event Burned(address indexed operator, address indexed from, uint256 amount, bytes data, bytes operatorData);
+    event AuthorizedOperator(address indexed operator, address indexed tokenHolder);
+    event RevokedOperator(address indexed operator, address indexed tokenHolder);
+    function name() external view returns (string memory);
+    function symbol() external view returns (string memory);
+    function granularity() external view returns (uint256);
+    function totalSupply() external view returns (uint256);
+    function balanceOf(address owner) external view returns (uint256);
+    function send(address recipient, uint256 amount, bytes calldata data) external;
+    function burn(uint256 amount, bytes calldata data) external;
+    function isOperatorFor(address operator, address tokenHolder) external view returns (bool);
+    function authorizeOperator(address operator) external;
+    function revokeOperator(address operator) external;
+    function defaultOperators() external view returns (address[] memory);
+    function operatorSend(address sender, address recipient, uint256 amount, bytes calldata data, bytes calldata operatorData) external;
+    function operatorBurn(address account, uint256 amount, bytes calldata data, bytes calldata operatorData) external;
+    event Sent(address indexed operator, address indexed from, address indexed to, uint256 amount, bytes data, bytes operatorData);
+}
+
+// import "@openzeppelin/contracts/token/ERC777/IERC777Recipient.sol";
+interface IERC777Recipient {
+    function tokensReceived(address operator, address from, address to, uint256 amount, bytes calldata userData, bytes calldata operatorData) external;
+}
+
+// import "@openzeppelin/contracts/token/ERC777/IERC777Sender.sol";
+interface IERC777Sender {
+    function tokensToSend(address operator, address from, address to, uint256 amount, bytes calldata userData, bytes calldata operatorData) external;
+}
+
 // import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 interface IERC1155 is IERC165 {
     event TransferSingle(address indexed operator, address indexed from, address indexed to, uint256 id, uint256 value);
@@ -60,7 +92,26 @@ interface IERC1155Receiver is IERC165 {
     function onERC1155BatchReceived(address operator, address from, uint256[] calldata ids, uint256[] calldata values, bytes calldata data) external returns (bytes4);
 }
 
-contract StandardContract is IERC721Receiver, IERC1155Receiver {
+// import "@openzeppelin/contracts/utils/introspection/IERC1820Implementer.sol";
+interface IERC1820Implementer {
+    function canImplementInterfaceForAddress(bytes32 interfaceHash, address account) external view returns (bytes32);
+}
+
+// import "@openzeppelin/contracts/utils/introspection/IERC1820Registry.sol";
+interface IERC1820Registry {
+    event InterfaceImplementerSet(address indexed account, bytes32 indexed interfaceHash, address indexed implementer);
+    event ManagerChanged(address indexed account, address indexed newManager);
+    function setManager(address account, address newManager) external;
+    function getManager(address account) external view returns (address);
+    function setInterfaceImplementer(address account, bytes32 _interfaceHash, address implementer) external;
+    function getInterfaceImplementer(address account, bytes32 _interfaceHash) external view returns (address);
+    function interfaceHash(string calldata interfaceName) external pure returns (bytes32);
+    function updateERC165Cache(address account, bytes4 interfaceId) external;
+    function implementsERC165Interface(address account, bytes4 interfaceId) external view returns (bool);
+    function implementsERC165InterfaceNoCache(address account, bytes4 interfaceId) external view returns (bool);
+}
+
+contract StandardContract is IERC721Receiver, IERC777Recipient, IERC777Sender, IERC1155Receiver, IERC1820Implementer {
     /*
     *
     *
@@ -89,6 +140,15 @@ contract StandardContract is IERC721Receiver, IERC1155Receiver {
 
     /// @notice The ERC721 token withdraw is not allowed.
     error ERC721TokenWithdrawError(address tokenAddress, uint256 id, uint256 requestedValue, uint256 tokenBalance);
+
+    /// @notice The ERC777 token contract could not be found.
+    error ERC777TokenContractError(address tokenAddress);
+
+    /// @notice The ERC777 token transfer failed.
+    error ERC777TokenTransferError(address tokenAddress, address _address, uint256 requestedValue);
+
+    /// @notice The ERC777 token withdraw is not allowed.
+    error ERC777TokenWithdrawError(address tokenAddress, uint256 requestedValue, uint256 tokenBalance);
 
     /// @notice The ERC1155 token contract could not be found.
     error ERC1155TokenContractError(address tokenAddress, uint256 id);
@@ -131,6 +191,19 @@ contract StandardContract is IERC721Receiver, IERC1155Receiver {
     /*
     *
     *
+        Constants
+    *
+    *
+    */
+
+    IERC1820Registry private constant _ERC1820_REGISTRY = IERC1820Registry(0x1820a4B7618BdE71Dce8cdc73aAB6C95905faD24);
+    bytes32 private constant _ERC1820_ACCEPT_MAGIC = keccak256("ERC1820_ACCEPT_MAGIC");
+    bytes32 private constant _TOKENS_RECIPIENT_INTERFACE_HASH = keccak256("ERC777TokensRecipient");
+    bytes32 private constant _TOKENS_SENDER_INTERFACE_HASH = keccak256("ERC777TokensSender");
+
+    /*
+    *
+    *
         Private Variables
     *
     *
@@ -157,6 +230,15 @@ contract StandardContract is IERC721Receiver, IERC1155Receiver {
     */
 
     /*
+        Built-In Functions
+    */
+
+    constructor() payable {
+        _ERC1820_REGISTRY.setInterfaceImplementer(address(this), _TOKENS_RECIPIENT_INTERFACE_HASH, address(this));
+        _ERC1820_REGISTRY.setInterfaceImplementer(address(this), _TOKENS_SENDER_INTERFACE_HASH, address(this));
+    }
+
+    /*
         Implementation Functions
     */
 
@@ -164,13 +246,22 @@ contract StandardContract is IERC721Receiver, IERC1155Receiver {
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return interfaceId == type(IERC165).interfaceId
             || interfaceId == type(IERC721Receiver).interfaceId
-            || interfaceId == type(IERC1155Receiver).interfaceId;
+            || interfaceId == type(IERC777Recipient).interfaceId
+            || interfaceId == type(IERC777Sender).interfaceId
+            || interfaceId == type(IERC1155Receiver).interfaceId
+            || interfaceId == type(IERC1820Implementer).interfaceId;
     }
 
     // IERC721Receiver Implementation
     function onERC721Received(address, address, uint256, bytes memory) public virtual returns (bytes4) {
         return this.onERC721Received.selector;
     }
+
+    // IERC777Recipient Implementation
+    function tokensReceived(address operator, address from, address to, uint256 amount, bytes calldata userData, bytes calldata operatorData) external {}
+
+    // IERC777Sender Implementation
+    function tokensToSend(address operator, address from, address to, uint256 amount, bytes calldata userData, bytes calldata operatorData) external {}
 
     // IERC1155Receiver Implementation
     function onERC1155Received(address, address, uint256, uint256, bytes memory) external pure returns (bytes4) {
@@ -179,6 +270,16 @@ contract StandardContract is IERC721Receiver, IERC1155Receiver {
 
     function onERC1155BatchReceived(address, address, uint256[] memory, uint256[] memory, bytes memory) external pure returns (bytes4) {
         return this.onERC1155BatchReceived.selector;
+    }
+
+    // IERC1820Implementer Implementation
+    function canImplementInterfaceForAddress(bytes32 interfaceHash, address account) external view returns (bytes32) {
+        if(account == address(this) && (interfaceHash == _TOKENS_RECIPIENT_INTERFACE_HASH || interfaceHash == _TOKENS_SENDER_INTERFACE_HASH)) {
+            return _ERC1820_ACCEPT_MAGIC;
+        }
+        else {
+            return bytes32(0x00);
+        }
     }
 
     /*
@@ -217,6 +318,10 @@ contract StandardContract is IERC721Receiver, IERC1155Receiver {
         transferERC721TokenToAddress(_tokenAddress, _id, _address);
     }
 
+    function withdrawERC777Tokens(address _tokenAddress, address _address, uint256 _value, bytes memory _data) private {
+        transferERC777TokenToAddress(_tokenAddress, _address, _value, _data);
+    }
+
     function withdrawERC1155Tokens(address _tokenAddress, uint256 _id, address _address, uint256 _value, bytes memory _data) private {
         transferERC1155TokenToAddress(_tokenAddress, _id, _address, _value, _data);
     }
@@ -238,6 +343,12 @@ contract StandardContract is IERC721Receiver, IERC1155Receiver {
     function isERC721TokenWithdrawAllowed(address _tokenAddress, uint256 _id) private view returns (bool) {
         // Each ID is a unique NFT, so the balance is either 0 or 1.
         return 1 == getERC721TokenBalance(_tokenAddress, _id);
+    }
+
+    function isERC777TokenWithdrawAllowed(address _tokenAddress, uint256 _value) private view returns (bool) {
+        // Note that we forbid withdrawing an amount higher than the available balance.
+        // Even if the token's contract would allow for such a strange withdraw, we do not permit it here.
+        return _value <= getERC777TokenBalance(_tokenAddress);
     }
 
     function isERC1155TokenWithdrawAllowed(address _tokenAddress, uint256 _id, uint256 _value) private view returns (bool) {
@@ -292,6 +403,12 @@ contract StandardContract is IERC721Receiver, IERC1155Receiver {
         }
     }
 
+    function requireERC777TokenWithdrawAllowed(address _tokenAddress, uint256 _value) private view {
+        if(!isERC777TokenWithdrawAllowed(_tokenAddress, _value)) {
+            revert ERC777TokenWithdrawError(_tokenAddress, _value, getERC777TokenBalance(_tokenAddress));
+        }
+    }
+
     function requireERC1155TokenWithdrawAllowed(address _tokenAddress, uint256 _id, uint256 _value) private view {
         if(!isERC1155TokenWithdrawAllowed(_tokenAddress, _id, _value)) {
             revert ERC1155TokenWithdrawError(_tokenAddress, _id, _value, getERC1155TokenBalance(_tokenAddress, _id));
@@ -343,6 +460,10 @@ contract StandardContract is IERC721Receiver, IERC1155Receiver {
     function getERC721TokenBalance(address _tokenAddress, uint256 _id) private view returns (uint256) {
         // Each ID is a unique NFT, so the balance is either 0 or 1.
         return IERC721(_tokenAddress).ownerOf(_id) == address(this) ? 1 : 0;
+    }
+
+    function getERC777TokenBalance(address _tokenAddress) private view returns (uint256) {
+        return IERC777(_tokenAddress).balanceOf(address(this));
     }
 
     function getERC1155TokenBalance(address _tokenAddress, uint256 _id) private view returns (uint256) {
@@ -461,6 +582,21 @@ contract StandardContract is IERC721Receiver, IERC1155Receiver {
 
         if(!success || (returnData.length != 0 && !abi.decode(returnData, (bool)))) {
             revert ERC721TokenTransferError(_tokenAddress, _id, _address);
+        }
+    }
+
+    function transferERC777TokenToAddress(address _tokenAddress, address _address, uint256 _value, bytes memory _data) private {
+        // Take extra care to account for tokens that don't revert on failure or that don't return a value.
+        // A return value is optional, but if it is present then it must be true.
+        if(_tokenAddress.code.length == 0) {
+            revert ERC777TokenContractError(_tokenAddress);
+        }
+
+        bytes memory callData = abi.encodeWithSelector(IERC777(_tokenAddress).send.selector, _address, _value, _data);
+        (bool success, bytes memory returnData) = _tokenAddress.call(callData);
+
+        if(!success || (returnData.length != 0 && !abi.decode(returnData, (bool)))) {
+            revert ERC777TokenTransferError(_tokenAddress, _address, _value);
         }
     }
 
@@ -721,6 +857,21 @@ contract StandardContract is IERC721Receiver, IERC1155Receiver {
         unlock();
     }
 
+    /// @notice The operator can withdraw any amount of one kind of ERC777 token.
+    /// @param _tokenAddress The address where the ERC777 token's contract lives.
+    /// @param _value The amount of ERC777 tokens to withdraw.
+    /// @param _data Additional data with no specified format.
+    function withdraw_erc777Tokens(address _tokenAddress, uint256 _value, bytes memory _data) external {
+        lock();
+
+        requireOperatorAddress(msg.sender);
+        requireERC777TokenWithdrawAllowed(_tokenAddress, _value);
+
+        withdrawERC777Tokens(_tokenAddress, msg.sender, _value, _data);
+
+        unlock();
+    }
+
     /// @notice The operator can withdraw any amount of one kind of ERC1155 token.
     /// @param _tokenAddress The address where the ERC1155 token's contract lives.
     /// @param _id The ID of the ERC1155 token.
@@ -804,6 +955,13 @@ contract StandardContract is IERC721Receiver, IERC1155Receiver {
     /// @return The balance of an ERC721 token.
     function get_erc721tokenBalance(address _tokenAddress, uint256 _id) external view returns (uint256) {
         return getERC721TokenBalance(_tokenAddress, _id);
+    }
+
+    /// @notice Returns the balance of an ERC777 token.
+    /// @param _tokenAddress The address where the ERC777 token's contract lives.
+    /// @return The balance of an ERC777 token.
+    function get_erc777tokenBalance(address _tokenAddress) external view returns (uint256) {
+        return getERC777TokenBalance(_tokenAddress);
     }
 
     /// @notice Returns the balance of an ERC1155 token.
