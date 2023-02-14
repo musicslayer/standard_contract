@@ -236,15 +236,15 @@ contract StandardContract is IERC721Receiver, IERC777Recipient, IERC777Sender, I
     *
     */
 
-    IERC1820Registry private constant _ERC1820_REGISTRY = IERC1820Registry(0x1820a4B7618BdE71Dce8cdc73aAB6C95905faD24);
-    bytes32 private constant _ERC1820_ACCEPT_MAGIC = keccak256("ERC1820_ACCEPT_MAGIC");
-    bytes32 private constant _TOKENS_RECIPIENT_INTERFACE_HASH = keccak256("ERC777TokensRecipient");
-    bytes32 private constant _TOKENS_SENDER_INTERFACE_HASH = keccak256("ERC777TokensSender");
+    IERC1820Registry internal constant _ERC1820_REGISTRY = IERC1820Registry(0x1820a4B7618BdE71Dce8cdc73aAB6C95905faD24);
+    bytes32 internal constant _ERC1820_ACCEPT_MAGIC = keccak256("ERC1820_ACCEPT_MAGIC");
+    bytes32 internal constant _TOKENS_RECIPIENT_INTERFACE_HASH = keccak256("ERC777TokensRecipient");
+    bytes32 internal constant _TOKENS_SENDER_INTERFACE_HASH = keccak256("ERC777TokensSender");
 
     /*
     *
     *
-        Private Variables
+        Internal Variables
     *
     *
     */
@@ -253,13 +253,13 @@ contract StandardContract is IERC721Receiver, IERC777Recipient, IERC777Sender, I
         Contract Variables
     */
 
-    address private operatorAddress;
-    address private operatorSuccessorAddress;
-    address private ownerAddress;
-    address private ownerSuccessorAddress;
+    address internal operatorAddress;
+    address internal operatorSuccessorAddress;
+    address internal ownerAddress;
+    address internal ownerSuccessorAddress;
 
-    bool private lockFlag;
-    bool private pauseFlag;
+    bool internal lockFlag;
+    bool internal pauseFlag;
 
     /*
     *
@@ -331,19 +331,19 @@ contract StandardContract is IERC721Receiver, IERC777Recipient, IERC777Sender, I
         Action Functions
     */
 
-    function claimOperatorRole(address _address) private {
+    function claimOperatorRole(address _address) internal {
         setOperatorAddress(_address);
     }
 
-    function claimOwnerRole(address _address) private {
+    function claimOwnerRole(address _address) internal {
         setOwnerAddress(_address);
     }
 
-    function offerOperatorRole(address _address) private {
+    function offerOperatorRole(address _address) internal {
         setOperatorSuccessorAddress(_address);
     }
 
-    function offerOwnerRole(address _address) private {
+    function offerOwnerRole(address _address) internal {
         setOwnerSuccessorAddress(_address);
     }
 
@@ -351,23 +351,23 @@ contract StandardContract is IERC721Receiver, IERC777Recipient, IERC777Sender, I
         Withdraw Functions
     */
 
-    function withdrawCoins(address _address, uint256 _value) private {
+    function withdrawCoins(address _address, uint256 _value) internal {
         transferCoinToAddress(_address, _value);
     }
 
-    function withdrawERC20Tokens(address _tokenAddress, address _address, uint256 _value) private {
+    function withdrawERC20Tokens(address _tokenAddress, address _address, uint256 _value) internal {
         transferERC20TokenToAddress(_tokenAddress, _address, _value);
     }
 
-    function withdrawERC721Tokens(address _tokenAddress, uint256 _id, address _address) private {
+    function withdrawERC721Tokens(address _tokenAddress, uint256 _id, address _address) internal {
         transferERC721TokenToAddress(_tokenAddress, _id, _address);
     }
 
-    function withdrawERC777Tokens(address _tokenAddress, address _address, uint256 _value, bytes memory _data) private {
+    function withdrawERC777Tokens(address _tokenAddress, address _address, uint256 _value, bytes memory _data) internal {
         transferERC777TokenToAddress(_tokenAddress, _address, _value, _data);
     }
 
-    function withdrawERC1155Tokens(address _tokenAddress, uint256 _id, address _address, uint256 _value, bytes memory _data) private {
+    function withdrawERC1155Tokens(address _tokenAddress, uint256 _id, address _address, uint256 _value, bytes memory _data) internal {
         transferERC1155TokenToAddress(_tokenAddress, _id, _address, _value, _data);
     }
 
@@ -375,54 +375,54 @@ contract StandardContract is IERC721Receiver, IERC777Recipient, IERC777Sender, I
         Query Functions
     */
 
-    function isCoinWithdrawAllowed(uint256 _value) private view returns (bool) {
+    function isCoinWithdrawAllowed(uint256 _value) internal view returns (bool) {
         return _value <= getCoinBalance();
     }
 
-    function isERC20TokenWithdrawAllowed(address _tokenAddress, uint256 _value) private view returns (bool) {
+    function isERC20TokenWithdrawAllowed(address _tokenAddress, uint256 _value) internal view returns (bool) {
         // Note that we forbid withdrawing an amount higher than the available balance.
         // Even if the token's contract would allow for such a strange withdraw, we do not permit it here.
         return _value <= getERC20TokenBalance(_tokenAddress);
     }
 
-    function isERC721TokenWithdrawAllowed(address _tokenAddress, uint256 _id) private view returns (bool) {
+    function isERC721TokenWithdrawAllowed(address _tokenAddress, uint256 _id) internal view returns (bool) {
         // Each ID is a unique NFT, so the balance is either 0 or 1.
         return 1 == getERC721TokenBalance(_tokenAddress, _id);
     }
 
-    function isERC777TokenWithdrawAllowed(address _tokenAddress, uint256 _value) private view returns (bool) {
+    function isERC777TokenWithdrawAllowed(address _tokenAddress, uint256 _value) internal view returns (bool) {
         // Note that we forbid withdrawing an amount higher than the available balance.
         // Even if the token's contract would allow for such a strange withdraw, we do not permit it here.
         return _value <= getERC777TokenBalance(_tokenAddress);
     }
 
-    function isERC1155TokenWithdrawAllowed(address _tokenAddress, uint256 _id, uint256 _value) private view returns (bool) {
+    function isERC1155TokenWithdrawAllowed(address _tokenAddress, uint256 _id, uint256 _value) internal view returns (bool) {
         // Note that we forbid withdrawing an amount higher than the available balance.
         // Even if the token's contract would allow for such a strange withdraw, we do not permit it here.
         return _value <= getERC1155TokenBalance(_tokenAddress, _id);
     }
 
-    function isLocked() private view returns (bool) {
+    function isLocked() internal view returns (bool) {
         return lockFlag;
     }
 
-    function isOperatorAddress(address _address) private view returns (bool) {
+    function isOperatorAddress(address _address) internal view returns (bool) {
         return _address == getOperatorAddress();
     }
 
-    function isOperatorSuccessorAddress(address _address) private view returns (bool) {
+    function isOperatorSuccessorAddress(address _address) internal view returns (bool) {
         return _address == getOperatorSuccessorAddress();
     }
 
-    function isOwnerAddress(address _address) private view returns (bool) {
+    function isOwnerAddress(address _address) internal view returns (bool) {
         return _address == getOwnerAddress();
     }
 
-    function isOwnerSuccessorAddress(address _address) private view returns (bool) {
+    function isOwnerSuccessorAddress(address _address) internal view returns (bool) {
         return _address == getOwnerSuccessorAddress();
     }
 
-    function isPaused() private view returns (bool) {
+    function isPaused() internal view returns (bool) {
         return pauseFlag;
     }
 
@@ -430,61 +430,61 @@ contract StandardContract is IERC721Receiver, IERC777Recipient, IERC777Sender, I
         Require Functions
     */
 
-    function requireCoinWithdrawAllowed(uint256 _value) private view {
+    function requireCoinWithdrawAllowed(uint256 _value) internal view {
         if(!isCoinWithdrawAllowed(_value)) {
             revert CoinWithdrawError(_value, getCoinBalance());
         }
     }
 
-    function requireERC20TokenWithdrawAllowed(address _tokenAddress, uint256 _value) private view {
+    function requireERC20TokenWithdrawAllowed(address _tokenAddress, uint256 _value) internal view {
         if(!isERC20TokenWithdrawAllowed(_tokenAddress, _value)) {
             revert ERC20TokenWithdrawError(_tokenAddress, _value, getERC20TokenBalance(_tokenAddress));
         }
     }
 
-    function requireERC721TokenWithdrawAllowed(address _tokenAddress, uint256 _id) private view {
+    function requireERC721TokenWithdrawAllowed(address _tokenAddress, uint256 _id) internal view {
         if(!isERC721TokenWithdrawAllowed(_tokenAddress, _id)) {
             revert ERC721TokenWithdrawError(_tokenAddress, _id, 1, getERC721TokenBalance(_tokenAddress, _id));
         }
     }
 
-    function requireERC777TokenWithdrawAllowed(address _tokenAddress, uint256 _value) private view {
+    function requireERC777TokenWithdrawAllowed(address _tokenAddress, uint256 _value) internal view {
         if(!isERC777TokenWithdrawAllowed(_tokenAddress, _value)) {
             revert ERC777TokenWithdrawError(_tokenAddress, _value, getERC777TokenBalance(_tokenAddress));
         }
     }
 
-    function requireERC1155TokenWithdrawAllowed(address _tokenAddress, uint256 _id, uint256 _value) private view {
+    function requireERC1155TokenWithdrawAllowed(address _tokenAddress, uint256 _id, uint256 _value) internal view {
         if(!isERC1155TokenWithdrawAllowed(_tokenAddress, _id, _value)) {
             revert ERC1155TokenWithdrawError(_tokenAddress, _id, _value, getERC1155TokenBalance(_tokenAddress, _id));
         }
     }
 
-    function requireNotPaused() private view {
+    function requireNotPaused() internal view {
         if(isPaused()) {
             revert PausedContractError();
         }
     }
 
-    function requireOperatorAddress(address _address) private view {
+    function requireOperatorAddress(address _address) internal view {
         if(!isOperatorAddress(_address)) {
             revert NotOperatorError(_address, getOperatorAddress());
         }
     }
 
-    function requireOperatorSuccessorAddress(address _address) private view {
+    function requireOperatorSuccessorAddress(address _address) internal view {
         if(!isOperatorSuccessorAddress(_address)) {
             revert NotOperatorSuccessorError(_address, getOperatorSuccessorAddress());
         }
     }
 
-    function requireOwnerAddress(address _address) private view {
+    function requireOwnerAddress(address _address) internal view {
         if(!isOwnerAddress(_address)) {
             revert NotOwnerError(_address, getOwnerAddress());
         }
     }
 
-    function requireOwnerSuccessorAddress(address _address) private view {
+    function requireOwnerSuccessorAddress(address _address) internal view {
         if(!isOwnerSuccessorAddress(_address)) {
             revert NotOwnerSuccessorError(_address, getOwnerSuccessorAddress());
         }
@@ -494,40 +494,40 @@ contract StandardContract is IERC721Receiver, IERC777Recipient, IERC777Sender, I
         Get Functions
     */
 
-    function getCoinBalance() private view returns (uint256) {
+    function getCoinBalance() internal view returns (uint256) {
         return address(this).balance;
     }
 
-    function getERC20TokenBalance(address _tokenAddress) private view returns (uint256) {
+    function getERC20TokenBalance(address _tokenAddress) internal view returns (uint256) {
         return IERC20(_tokenAddress).balanceOf(address(this));
     }
 
-    function getERC721TokenBalance(address _tokenAddress, uint256 _id) private view returns (uint256) {
+    function getERC721TokenBalance(address _tokenAddress, uint256 _id) internal view returns (uint256) {
         // Each ID is a unique NFT, so the balance is either 0 or 1.
         return IERC721(_tokenAddress).ownerOf(_id) == address(this) ? 1 : 0;
     }
 
-    function getERC777TokenBalance(address _tokenAddress) private view returns (uint256) {
+    function getERC777TokenBalance(address _tokenAddress) internal view returns (uint256) {
         return IERC777(_tokenAddress).balanceOf(address(this));
     }
 
-    function getERC1155TokenBalance(address _tokenAddress, uint256 _id) private view returns (uint256) {
+    function getERC1155TokenBalance(address _tokenAddress, uint256 _id) internal view returns (uint256) {
         return IERC1155(_tokenAddress).balanceOf(address(this), _id);
     }
 
-    function getOperatorAddress() private view returns (address) {
+    function getOperatorAddress() internal view returns (address) {
         return operatorAddress;
     }
 
-    function getOperatorSuccessorAddress() private view returns (address) {
+    function getOperatorSuccessorAddress() internal view returns (address) {
         return operatorSuccessorAddress;
     }
 
-    function getOwnerAddress() private view returns (address) {
+    function getOwnerAddress() internal view returns (address) {
         return ownerAddress;
     }
 
-    function getOwnerSuccessorAddress() private view returns (address) {
+    function getOwnerSuccessorAddress() internal view returns (address) {
         return ownerSuccessorAddress;
     }
 
@@ -535,33 +535,33 @@ contract StandardContract is IERC721Receiver, IERC777Recipient, IERC777Sender, I
         Set Functions
     */
 
-    function setLocked(bool _isLocked) private {
+    function setLocked(bool _isLocked) internal {
         lockFlag = _isLocked;
     }
 
-    function setOperatorAddress(address _address) private {
+    function setOperatorAddress(address _address) internal {
         if(_address != operatorAddress) {
             emit OperatorChanged(operatorAddress, _address);
             operatorAddress = _address;
         }
     }
 
-    function setOperatorSuccessorAddress(address _address) private {
+    function setOperatorSuccessorAddress(address _address) internal {
         operatorSuccessorAddress = _address;
     }
     
-    function setOwnerAddress(address _address) private {
+    function setOwnerAddress(address _address) internal {
         if(_address != ownerAddress) {
             emit OwnerChanged(ownerAddress, _address);
             ownerAddress = _address;
         }
     }
 
-    function setOwnerSuccessorAddress(address _address) private {
+    function setOwnerSuccessorAddress(address _address) internal {
         ownerSuccessorAddress = _address;
     }
 
-    function setPause(bool _isPaused) private {
+    function setPause(bool _isPaused) internal {
         pauseFlag = _isPaused;
     }
 
@@ -569,7 +569,7 @@ contract StandardContract is IERC721Receiver, IERC777Recipient, IERC777Sender, I
         Reentrancy Functions
     */
 
-    function lock() private {
+    function lock() internal {
         // Call this at the start of each external function that can change state to protect against reentrancy.
         if(isLocked()) {
             punish();
@@ -577,7 +577,7 @@ contract StandardContract is IERC721Receiver, IERC777Recipient, IERC777Sender, I
         setLocked(true);
     }
 
-    function unlock() private {
+    function unlock() internal {
         // Call this at the end of each external function.
         setLocked(false);
     }
@@ -586,21 +586,21 @@ contract StandardContract is IERC721Receiver, IERC777Recipient, IERC777Sender, I
         Utility Functions
     */
 
-    function addressToString(address _address) private pure returns(string memory) {
+    function addressToString(address _address) internal pure returns(string memory) {
         // Convert the address to a checksum address string.
         return getChecksum(_address);
     }
 
-    function punish() private pure {
+    function punish() internal pure {
         // This operation will cause a revert but also consume all the gas. This will punish those who are trying to attack the contract.
         assembly("memory-safe") { invalid() }
     }
 
-    function transferCoinToAddress(address _address, uint256 _value) private {
+    function transferCoinToAddress(address _address, uint256 _value) internal {
         payable(_address).transfer(_value);
     }
 
-    function transferERC20TokenToAddress(address _tokenAddress, address _address, uint256 _value) private {
+    function transferERC20TokenToAddress(address _tokenAddress, address _address, uint256 _value) internal {
         // Take extra care to account for tokens that don't revert on failure or that don't return a value.
         // A return value is optional, but if it is present then it must be true.
         if(_tokenAddress.code.length == 0) {
@@ -615,7 +615,7 @@ contract StandardContract is IERC721Receiver, IERC777Recipient, IERC777Sender, I
         }
     }
 
-    function transferERC721TokenToAddress(address _tokenAddress, uint256 _id, address _address) private {
+    function transferERC721TokenToAddress(address _tokenAddress, uint256 _id, address _address) internal {
         // Take extra care to account for tokens that don't revert on failure or that don't return a value.
         // A return value is optional, but if it is present then it must be true.
         if(_tokenAddress.code.length == 0) {
@@ -630,7 +630,7 @@ contract StandardContract is IERC721Receiver, IERC777Recipient, IERC777Sender, I
         }
     }
 
-    function transferERC777TokenToAddress(address _tokenAddress, address _address, uint256 _value, bytes memory _data) private {
+    function transferERC777TokenToAddress(address _tokenAddress, address _address, uint256 _value, bytes memory _data) internal {
         // Take extra care to account for tokens that don't revert on failure or that don't return a value.
         // A return value is optional, but if it is present then it must be true.
         if(_tokenAddress.code.length == 0) {
@@ -645,7 +645,7 @@ contract StandardContract is IERC721Receiver, IERC777Recipient, IERC777Sender, I
         }
     }
 
-    function transferERC1155TokenToAddress(address _tokenAddress, uint256 _id, address _address, uint256 _value, bytes memory _data) private {
+    function transferERC1155TokenToAddress(address _tokenAddress, uint256 _id, address _address, uint256 _value, bytes memory _data) internal {
         // Take extra care to account for tokens that don't revert on failure or that don't return a value.
         // A return value is optional, but if it is present then it must be true.
         if(_tokenAddress.code.length == 0) {
@@ -660,7 +660,7 @@ contract StandardContract is IERC721Receiver, IERC777Recipient, IERC777Sender, I
         }
     }
 
-    function uint256ToString(uint256 _i) private pure returns (string memory) {
+    function uint256ToString(uint256 _i) internal pure returns (string memory) {
         if(_i == 0) {
             return "0";
         }
@@ -686,11 +686,11 @@ contract StandardContract is IERC721Receiver, IERC777Recipient, IERC777Sender, I
         Address Checksum Functions
     */
 
-    function getChecksum(address account) private pure returns (string memory accountChecksum) {
+    function getChecksum(address account) internal pure returns (string memory accountChecksum) {
         return _toChecksumString(account);
     }
 
-    function _toChecksumString(address account) private pure returns (string memory asciiString) {
+    function _toChecksumString(address account) internal pure returns (string memory asciiString) {
         // convert the account argument from address to bytes.
         bytes20 data = bytes20(account);
 
@@ -735,7 +735,7 @@ contract StandardContract is IERC721Receiver, IERC777Recipient, IERC777Sender, I
         return string.concat("0x", string(asciiBytes));
     }
 
-    function _toChecksumCapsFlags(address account) private pure returns (bool[40] memory characterCapitalized) {
+    function _toChecksumCapsFlags(address account) internal pure returns (bool[40] memory characterCapitalized) {
         // convert the address to bytes.
         bytes20 a = bytes20(account);
 
@@ -761,7 +761,7 @@ contract StandardContract is IERC721Receiver, IERC777Recipient, IERC777Sender, I
         }
     }
 
-    function _getAsciiOffset(uint8 nibble, bool caps) private pure returns (uint8 offset) {
+    function _getAsciiOffset(uint8 nibble, bool caps) internal pure returns (uint8 offset) {
         // to convert to ascii characters, add 48 to 0-9, 55 to A-F, & 87 to a-f.
         if(nibble < 10) {
             offset = 48;
@@ -775,7 +775,7 @@ contract StandardContract is IERC721Receiver, IERC777Recipient, IERC777Sender, I
     }
 
     // based on https://ethereum.stackexchange.com/a/56499/48410
-    function _toAsciiString(bytes20 data) private pure returns (string memory asciiString) {
+    function _toAsciiString(bytes20 data) internal pure returns (string memory asciiString) {
         // create an in-memory fixed-size bytes array.
         bytes memory asciiBytes = new bytes(40);
 
