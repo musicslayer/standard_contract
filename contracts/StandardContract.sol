@@ -236,6 +236,11 @@ contract StandardContract is IERC721Receiver, IERC777Recipient, IERC777Sender, I
     constructor() payable {
         _ERC1820_REGISTRY.setInterfaceImplementer(address(this), _TOKENS_RECIPIENT_INTERFACE_HASH, address(this));
         _ERC1820_REGISTRY.setInterfaceImplementer(address(this), _TOKENS_SENDER_INTERFACE_HASH, address(this));
+
+        setOwnerAddress(msg.sender);
+        setOwnerSuccessorAddress(msg.sender);
+        setOperatorAddress(msg.sender);
+        setOperatorSuccessorAddress(msg.sender);
     }
 
     /*
